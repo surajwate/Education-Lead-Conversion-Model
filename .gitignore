@@ -180,3 +180,6 @@ Web searchCopy
 # My own stuff
 
 _notes.md
+
+# Ignore figures generated from notebooks
+notebooks/figures/
