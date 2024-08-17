@@ -4,21 +4,21 @@ from pathlib import Path
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 
 # Configure logging
-log_file_name = "data_preprocessing.log"
-def configure_logging(log_file_name):
+def configure_logging(log_file_name="data_preprocessing.log"):
     log_dir = Path("./logs")
     log_dir.mkdir(parents=True, exist_ok=True)
     logging.basicConfig(
         filename=log_dir / log_file_name,
-        level=logging.INFO,  # Consider DEBUG for more detailed output
+        level=logging.INFO,  # Change to DEBUG for more detailed logs
         format="%(asctime)s - %(levelname)s - %(message)s",
-        filemode="a",
+        filemode="a",  # Use 'w' to overwrite the log file on each run
     )
+    logging.info("Logging is configured.")
 
 def load_data(input_path):
     logging.info(f"Loading cleaned data from {input_path}")
     df = pd.read_csv(input_path)
-    logging.info(f"Data loaded with shape: {df.shape}")
+    logging.info(f"Data loaded successfully. Shape: {df.shape}")
     return df
 
 def preprocess_data(df, fold):
@@ -27,12 +27,15 @@ def preprocess_data(df, fold):
     # Mapping binary columns to 0/1
     binary_mapping = {'Yes': 1, 'No': 0}
     binary_columns = [col for col in df.columns if df[col].nunique() == 2 and df[col].dtype == 'O']
-    binary_columns.remove('Converted')
+    if 'Converted' in binary_columns:
+        binary_columns.remove('Converted')
     df[binary_columns] = df[binary_columns].apply(lambda x: x.map(binary_mapping))
-    
+    logging.info(f"Binary columns mapped: {binary_columns}. Data shape: {df.shape}")
+
     # Converting specific object columns to numeric
     numerical_columns = ['Converted', 'TotalVisits', 'Total Time Spent on Website', 'Page Views Per Visit', 'kfold']
     df[numerical_columns] = df[numerical_columns].apply(pd.to_numeric, errors='coerce')
+    logging.info(f"Numerical columns converted: {numerical_columns}. Data shape: {df.shape}")
 
     # Removing 'Converted' and 'kfold' columns from numerical columns to be scaled
     numerical_columns.remove('Converted')
@@ -41,11 +44,13 @@ def preprocess_data(df, fold):
     # Split data into train and test based on kfold column
     train_data = df[df.kfold != fold].reset_index(drop=True)
     test_data = df[df.kfold == fold].reset_index(drop=True)
+    logging.info(f"Split data into train and test. Train shape: {train_data.shape}, Test shape: {test_data.shape}")
 
     # Scale the numerical columns
     scaler = StandardScaler()
     train_data[numerical_columns] = scaler.fit_transform(train_data[numerical_columns])
     test_data[numerical_columns] = scaler.transform(test_data[numerical_columns])
+    logging.info("Numerical columns scaled.")
 
     # One-hot encode categorical columns
     categorical_columns = [col for col in df.columns if df[col].dtype == 'O']
@@ -60,24 +65,37 @@ def preprocess_data(df, fold):
     
     train_data = pd.concat([train_data, encoded_train], axis=1)
     test_data = pd.concat([test_data, encoded_test], axis=1)
-    
+    logging.info(f"Categorical columns encoded. Train shape: {train_data.shape}, Test shape: {test_data.shape}")
+
     # Concatenate the final train and test data
     final_df = pd.concat([train_data, test_data], axis=0).reset_index(drop=True)
+    logging.info(f"Preprocessing completed for fold {fold}. Final data shape: {final_df.shape}")
 
-    logging.info(f"Preprocessing completed for fold {fold}.")
     return final_df
 
 if __name__ == "__main__":
     from data_cleaning import drop_columns, impute_missing_values
     configure_logging()
+    logging.info("Starting data_preprocessing.py script.")
     
-    data = pd.read_csv("./input/train_folds.csv")
-    df = drop_columns(data)
-    first_fold = impute_missing_values(df, 0)
-    logging.info(f"Missing values in first fold: {first_fold.isna().sum().sum()} before preprocessing")
-    # Example of processing a single fold (e.g., fold 0)
-    preprocessed_df = preprocess_data(first_fold, fold=0)
-    logging.info(f"Missing values in first fold after preprocessing: {preprocessed_df.isna().sum().sum()}")
+    try:
+        data = pd.read_csv("./input/train_folds.csv")
+        logging.info(f"Data loaded. Initial shape: {data.shape}")
+        
+        df = drop_columns(data)
+        logging.info("Dropped unnecessary columns.")
+        
+        first_fold = impute_missing_values(df, 0)
+        logging.info(f"Missing values in first fold: {first_fold.isna().sum().sum()} before preprocessing")
+        
+        # Example of processing a single fold (e.g., fold 0)
+        preprocessed_df = preprocess_data(first_fold, fold=0)
+        logging.info(f"Missing values in first fold after preprocessing: {preprocessed_df.isna().sum().sum()}")
+        
+        logging.info("Data preprocessing pipeline executed successfully.")
+        
+    except Exception as e:
+        logging.error(f"An error occurred: {str(e)}")
+        raise
     
-    # Further processing or model training can directly use `preprocessed_df`
-    logging.info("Data preprocessing pipeline executed successfully.")
+    logging.info("data_preprocessing.py script completed successfully.")

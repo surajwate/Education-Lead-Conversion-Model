@@ -43,17 +43,16 @@ Summary:
 """
 
 # Configure logging
-log_file_name = "create_folds.log"
-def configure_logging(log_file_name):
+def configure_logging(log_file_name="create_folds.log"):
     log_dir = Path("./logs")
     log_dir.mkdir(parents=True, exist_ok=True)
     logging.basicConfig(
         filename=log_dir / log_file_name,
-        level=logging.INFO,  # Consider DEBUG for more detailed output
+        level=logging.INFO,  # Change to DEBUG if you want more detailed logs
         format="%(asctime)s - %(levelname)s - %(message)s",
-        filemode="a",
+        filemode="a",  # Use 'w' to overwrite the log file on each run
     )
-
+    logging.info("Logging is configured.")
 
 def create_folds(
     input_path: Path,
@@ -76,34 +75,37 @@ def create_folds(
         random_state (int): Random state for reproducibility. Defaults to 42.
     """
     try:
-        # Read the data
+        logging.info(f"Reading data from {input_path}")
         df = pd.read_csv(input_path)
         logging.info(f"Data loaded successfully. Shape: {df.shape}")
 
         # Create a kfold column
         df["kfold"] = -1
+        logging.info("Initialized kfold column.")
 
         # Randomize the rows
         df = df.sample(frac=1, random_state=random_state).reset_index(drop=True)
+        logging.info("Data randomized.")
 
         if stratify:
             if target_column is None or target_column not in df.columns:
-                raise ValueError(
-                    f"Target column '{target_column}' not found or not specified "
-                    f"for stratified split."
-                )
+                error_message = f"Target column '{target_column}' not found or not specified for stratified split."
+                logging.error(error_message)
+                raise ValueError(error_message)
+
             y = df[target_column].values
             splitter: Union[KFold, StratifiedKFold] = StratifiedKFold(
                 n_splits=n_splits, shuffle=True, random_state=random_state
             )
-            split_args = {"X": df, "y": y}
+            logging.info("StratifiedKFold will be used for splitting.")
         else:
             splitter = KFold(n_splits=n_splits, shuffle=True, random_state=random_state)
-            split_args = {"X": df}
+            logging.info("KFold will be used for splitting.")
 
         # Fill the new kfold column
-        for fold, (_, val_idx) in enumerate(splitter.split(**split_args)):
+        for fold, (_, val_idx) in enumerate(splitter.split(X=df, y=(y if stratify else None))):
             df.loc[val_idx, "kfold"] = fold
+            logging.info(f"Assigned fold {fold} to {len(val_idx)} samples.")
 
         # Save the dataframe
         df.to_csv(output_path, index=False)
@@ -111,7 +113,7 @@ def create_folds(
 
     except Exception as e:
         logging.error(f"An error occurred: {str(e)}")
-
+        raise
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Create k-fold splits of a dataset.")
@@ -157,6 +159,9 @@ if __name__ == "__main__":
     if not output_path.parent.exists():
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
+    configure_logging()
+    logging.info("Starting create_folds.py script.")
+
     create_folds(
         input_path,
         output_path,
@@ -165,4 +170,5 @@ if __name__ == "__main__":
         args.target,
         args.random_state,
     )
-    
+
+    logging.info("create_folds.py script completed successfully.")
