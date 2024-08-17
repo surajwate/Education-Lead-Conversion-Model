@@ -4,27 +4,22 @@ import logging
 from pathlib import Path
 from sklearn.impute import SimpleImputer
 
-# Ensure the logs directory exists
-log_dir = Path("./logs")
-log_dir.mkdir(parents=True, exist_ok=True)
+# Configure logging
+def configure_logging():
+    # Ensure the logs directory exists
+    log_dir = Path("./logs")
+    log_dir.mkdir(parents=True, exist_ok=True)
 
-# Configure logging to file in the logs directory
-log_file = "logs/data_cleaning.log"
-logging.basicConfig(
-    filename=log_file,
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    filemode="a",  # Use 'w' to overwrite the log file on each run
-)
+    # Configure logging to file in the logs directory
+    log_file = "logs/data_cleaning.log"
+    logging.basicConfig(
+        filename=log_file,
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        filemode="a",  # Use 'w' to overwrite the log file on each run
+    )
 
-def clean_data(fold):
-    logging.info(f"Starting data cleaning for fold {fold}...")
-
-    # Load the data
-    data = pd.read_csv("./input/train_folds.csv")
-
-    # Create a copy of the dataframe to avoid any changes in the original dataframe
-    df = data.copy()
+def drop_columns(df):
 
     # drop the irrelevant columns
     df.drop(['Prospect ID', 'Lead Number'], axis=1, inplace=True)
@@ -41,6 +36,16 @@ def clean_data(fold):
     # drop the columns with single value
     single_value_columns = [col for col in df.columns if df[col].dropna().nunique() == 1]
     df.drop(columns=single_value_columns, axis=1, inplace=True)
+    logging.info(f"Dropped columns with single unique values: {single_value_columns}")
+
+    return df
+
+# Impute missing values for each fold
+def impute_missing_values(df, fold):
+    logging.info(f"Starting data cleaning for fold {fold}...")
+
+    # Create a copy of the dataframe to avoid any changes in the original dataframe
+    df = df.copy()
 
     test = df[df.kfold == fold]
     train = df[df.kfold != fold]
@@ -62,7 +67,12 @@ def clean_data(fold):
     return combined_df
 
 if __name__ == "__main__":
+    configure_logging()
+    
+    # Load the data
+    data = pd.read_csv("./input/train_folds.csv")
+    data = drop_columns(data)
 
     for fold in range(5):
-        fold_df = clean_data(fold)
+        fold_df = impute_missing_values(data, fold)
         logging.info(f"Data cleaning completed for fold {fold}.")
