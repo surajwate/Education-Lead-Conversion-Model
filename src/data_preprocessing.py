@@ -4,12 +4,13 @@ from pathlib import Path
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 
 # Configure logging
-def configure_logging():
+log_file_name = "data_preprocessing.log"
+def configure_logging(log_file_name):
     log_dir = Path("./logs")
     log_dir.mkdir(parents=True, exist_ok=True)
     logging.basicConfig(
-        filename=log_dir / "data_preprocessing.log",
-        level=logging.INFO,
+        filename=log_dir / log_file_name,
+        level=logging.INFO,  # Consider DEBUG for more detailed output
         format="%(asctime)s - %(levelname)s - %(message)s",
         filemode="a",
     )

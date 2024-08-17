@@ -42,18 +42,17 @@ Summary:
 - Flexibility: You can use either the full argument names or the shortcut versions depending on your preference.
 """
 
-# Ensure the logs directory exists
-log_dir = Path("./logs")
-log_dir.mkdir(parents=True, exist_ok=True)
-
-# Configure logging to file in the logs directory
-log_file = log_dir / "create_folds.log"
-logging.basicConfig(
-    filename=log_file,
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    filemode="a",  # Use 'w' to overwrite the log file on each run
-)
+# Configure logging
+log_file_name = "create_folds.log"
+def configure_logging(log_file_name):
+    log_dir = Path("./logs")
+    log_dir.mkdir(parents=True, exist_ok=True)
+    logging.basicConfig(
+        filename=log_dir / log_file_name,
+        level=logging.INFO,  # Consider DEBUG for more detailed output
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        filemode="a",
+    )
 
 
 def create_folds(

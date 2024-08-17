@@ -8,12 +8,12 @@ from sklearn.metrics import accuracy_score, confusion_matrix, classification_rep
 import joblib  # For saving/loading the model
 
 # Configure logging
-def configure_logging():
+def configure_logging(log_file_name):
     log_dir = Path("./logs")
     log_dir.mkdir(parents=True, exist_ok=True)
     logging.basicConfig(
-        filename=log_dir / "model_building.log",
-        level=logging.INFO,
+        filename=log_dir / log_file_name,
+        level=logging.INFO,  # Consider DEBUG for more detailed output
         format="%(asctime)s - %(levelname)s - %(message)s",
         filemode="a",
     )
@@ -47,7 +47,8 @@ def evaluate_model(model, X_test, y_test):
 if __name__ == "__main__":
     from data_cleaning import drop_columns, impute_missing_values
     from data_preprocessing import preprocess_data
-    configure_logging()
+    log_file_name = "model_building.log"
+    configure_logging(log_file_name)
 
     data = load_data("./input/train_folds.csv")
     df = drop_columns(data)

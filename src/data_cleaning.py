@@ -5,18 +5,15 @@ from pathlib import Path
 from sklearn.impute import SimpleImputer
 
 # Configure logging
-def configure_logging():
-    # Ensure the logs directory exists
+log_file_name = "data_cleaning.log"
+def configure_logging(log_file_name):
     log_dir = Path("./logs")
     log_dir.mkdir(parents=True, exist_ok=True)
-
-    # Configure logging to file in the logs directory
-    log_file = "logs/data_cleaning.log"
     logging.basicConfig(
-        filename=log_file,
-        level=logging.INFO,
+        filename=log_dir / log_file_name,
+        level=logging.INFO,  # Consider DEBUG for more detailed output
         format="%(asctime)s - %(levelname)s - %(message)s",
-        filemode="a",  # Use 'w' to overwrite the log file on each run
+        filemode="a",
     )
 
 def drop_columns(df):
