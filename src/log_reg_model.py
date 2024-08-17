@@ -5,6 +5,7 @@ from pathlib import Path
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+import joblib  # For saving/loading the model
 
 # Configure logging
 def configure_logging():
@@ -23,39 +24,25 @@ def load_data(input_path):
     logging.info(f"Data loaded with shape: {df.shape}")
     return df
 
-def train_and_evaluate_model(df, fold):
-    logging.info(f"Starting model training and evaluation for fold {fold}...")
-    
-    # Impute missing values
-    fold_df = impute_missing_values(df, fold)
-    
-    # Preprocess the data
-    fold_df = preprocess_data(fold_df, fold)
-    
-    # Drop the kfold column
-    fold_df = fold_df.drop("kfold", axis=1)
-    
-    # Split the data into X and y
-    X = fold_df.drop("Converted", axis=1)
-    y = fold_df["Converted"]
-    
-    # Split the data into train and test sets
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    
-    # Train the logistic regression model
+def train_model(X_train, y_train):
+    logging.info("Starting model training...")
     log_reg = LogisticRegression()
     log_reg.fit(X_train, y_train)
-    
-    # Make predictions
-    y_pred = log_reg.predict(X_test)
-    
-    # Evaluate the model
-    accuracy = accuracy_score(y_test, y_pred)
-    logging.info(f"Accuracy for fold {fold}: {accuracy}")
-    logging.info(f"Classification Report for fold {fold}:\n{classification_report(y_test, y_pred)}")
-    logging.info(f"Confusion Matrix for fold {fold}:\n{confusion_matrix(y_test, y_pred)}")
+    logging.info("Model training completed.")
+    return log_reg
 
-    return accuracy, classification_report(y_test, y_pred), confusion_matrix(y_test, y_pred)
+def evaluate_model(model, X_test, y_test):
+    logging.info("Starting model evaluation...")
+    y_pred = model.predict(X_test)
+    accuracy = accuracy_score(y_test, y_pred)
+    classification_rep = classification_report(y_test, y_pred)
+    confusion_mat = confusion_matrix(y_test, y_pred)
+
+    logging.info(f"Accuracy: {accuracy}")
+    logging.info(f"Classification Report:\n{classification_rep}")
+    logging.info(f"Confusion Matrix:\n{confusion_mat}")
+    
+    return accuracy, classification_rep, confusion_mat
 
 if __name__ == "__main__":
     from data_cleaning import drop_columns, impute_missing_values
@@ -65,9 +52,27 @@ if __name__ == "__main__":
     data = load_data("./input/train_folds.csv")
     df = drop_columns(data)
 
-    # Loop over each fold
     for fold in range(5):
-        accuracy, report, matrix = train_and_evaluate_model(df, fold)
+        logging.info(f"Processing fold {fold}...")
+        
+        # Prepare the data for the current fold
+        fold_df = impute_missing_values(df, fold)
+        fold_df = preprocess_data(fold_df, fold)
+        
+        # Drop kfold column and split the data
+        X = fold_df.drop(["Converted", "kfold"], axis=1)
+        y = fold_df["Converted"]
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        
+        # Train the model
+        model = train_model(X_train, y_train)
+        
+        # Save the model (optional)
+        joblib.dump(model, f"./models/log_reg_fold_{fold}.pkl")
+        
+        # Evaluate the model
+        accuracy, report, matrix = evaluate_model(model, X_test, y_test)
+        
         print(f"Fold {fold} Results:")
         print(f"Accuracy: {accuracy}")
         print(f"Classification Report:\n{report}")
