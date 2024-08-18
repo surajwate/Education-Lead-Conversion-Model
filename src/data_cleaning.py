@@ -1,20 +1,11 @@
 import numpy as np
 import pandas as pd
 import logging
+from src.logging_utils import configure_logging
 from pathlib import Path
 from sklearn.impute import SimpleImputer
 
-# Configure logging
-def configure_logging(log_file_name="data_cleaning.log"):
-    log_dir = Path("./logs")
-    log_dir.mkdir(parents=True, exist_ok=True)
-    logging.basicConfig(
-        filename=log_dir / log_file_name,
-        level=logging.INFO,  # Use DEBUG if more detailed logs are required
-        format="%(asctime)s - %(levelname)s - %(message)s",
-        filemode="a",  # Use 'w' to overwrite the log file on each run
-    )
-    logging.info("Logging is configured.")
+configure_logging(log_file_name="data_cleaning.log")
 
 def drop_columns(df):
     logging.info("Dropping irrelevant columns...")

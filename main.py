@@ -1,6 +1,7 @@
 import logging
 from pathlib import Path
 from sklearn.model_selection import train_test_split
+from src.logging_utils import configure_logging
 from src.create_folds import create_folds
 from src.data_cleaning import drop_columns, impute_missing_values
 from src.data_preprocessing import preprocess_data
@@ -9,16 +10,7 @@ from src.model_utils import evaluate_model, load_data
 
 import time
 
-def configure_logging(log_file_name="main_pipeline.log"):
-    log_dir = Path("./logs")
-    log_dir.mkdir(parents=True, exist_ok=True)
-    logging.basicConfig(
-        filename=log_dir / log_file_name,
-        level=logging.INFO,
-        format="%(asctime)s - %(levelname)s - %(message)s",
-        filemode="a",
-    )
-    logging.info("Logging is configured.")
+configure_logging(log_file_name="main_pipeline.log")
 
 
 def process_fold(fold, df):

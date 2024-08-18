@@ -1,19 +1,10 @@
 import pandas as pd
 import logging
+from src.logging_utils import configure_logging
 from pathlib import Path
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 
-# Configure logging
-def configure_logging(log_file_name="data_preprocessing.log"):
-    log_dir = Path("./logs")
-    log_dir.mkdir(parents=True, exist_ok=True)
-    logging.basicConfig(
-        filename=log_dir / log_file_name,
-        level=logging.INFO,  # Change to DEBUG for more detailed logs
-        format="%(asctime)s - %(levelname)s - %(message)s",
-        filemode="a",  # Use 'w' to overwrite the log file on each run
-    )
-    logging.info("Logging is configured.")
+configure_logging(log_file_name="data_preprocessing.log")
 
 def load_data(input_path):
     logging.info(f"Loading cleaned data from {input_path}")
