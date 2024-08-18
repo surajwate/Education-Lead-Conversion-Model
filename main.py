@@ -10,11 +10,11 @@ from src.model_utils import evaluate_model, load_data
 
 import time
 
-configure_logging(log_file_name="main_pipeline.log")
+logger = configure_logging(log_file_name="main_pipeline.log")
 
 
 def process_fold(fold, df):
-    logging.info(f"Processing fold {fold}...")
+    logger.info(f"Processing fold {fold}...")
     
     # Step 3: Data Imputation
     fold_df = impute_missing_values(df, fold)
@@ -38,7 +38,7 @@ def process_fold(fold, df):
 def main():
     configure_logging()
     start_time = time.time()
-    logging.info("Starting main pipeline.")
+    logger.info("Starting main pipeline.")
     
     try:
         # Step 1: Create K-Folds
@@ -62,15 +62,15 @@ def main():
             print(f"Classification Report:\n{report}")
             print(f"Confusion Matrix:\n{matrix}")
 
-        logging.info(f"Average Accuracy: {sum(all_accuracies) / len(all_accuracies):.2f}")
+        logger.info(f"Average Accuracy: {sum(all_accuracies) / len(all_accuracies):.2f}")
         
     except Exception as e:
-        logging.error(f"An error occurred: {str(e)}")
+        logger.error(f"An error occurred: {str(e)}")
         raise
     
-    logging.info("Main pipeline completed successfully.")
+    logger.info("Main pipeline completed successfully.")
     end_time = time.time()
-    logging.info(f"Execution time: {end_time - start_time:.2f} seconds.")
+    logger.info(f"Execution time: {end_time - start_time:.2f} seconds.")
 
 if __name__ == "__main__":
     main()
