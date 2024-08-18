@@ -32,6 +32,17 @@ def preprocess_data(df, fold):
     numerical_columns.remove('Converted')
     numerical_columns.remove('kfold')
 
+    # One-hot encode categorical columns
+    categorical_columns = [col for col in df.columns if df[col].dtype == 'O']
+    encoder = OneHotEncoder(sparse_output=False, handle_unknown='ignore', drop='first')
+
+    # Encode and merge categorical columns
+    encoded_df = pd.DataFrame(encoder.fit_transform(df[categorical_columns]).astype(int), columns=encoder.get_feature_names_out(categorical_columns))
+    df = pd.concat([df, encoded_df], axis=1)
+    df = df.drop(categorical_columns, axis=1)
+    logger.info(f"Categorical columns encoded: {categorical_columns}. Data shape: {df.shape}")
+
+
     # Split data into train and test based on kfold column
     train_data = df[df.kfold != fold].reset_index(drop=True)
     test_data = df[df.kfold == fold].reset_index(drop=True)
@@ -42,21 +53,6 @@ def preprocess_data(df, fold):
     train_data[numerical_columns] = scaler.fit_transform(train_data[numerical_columns])
     test_data[numerical_columns] = scaler.transform(test_data[numerical_columns])
     logger.info("Numerical columns scaled.")
-
-    # One-hot encode categorical columns
-    categorical_columns = [col for col in df.columns if df[col].dtype == 'O']
-    encoder = OneHotEncoder(sparse_output=False, handle_unknown='ignore', drop='first')
-    
-    # Encode and merge categorical columns
-    encoded_train = pd.DataFrame(encoder.fit_transform(train_data[categorical_columns]), columns=encoder.get_feature_names_out(categorical_columns))
-    encoded_test = pd.DataFrame(encoder.transform(test_data[categorical_columns]), columns=encoder.get_feature_names_out(categorical_columns))
-
-    train_data = train_data.drop(categorical_columns, axis=1)
-    test_data = test_data.drop(categorical_columns, axis=1)
-    
-    train_data = pd.concat([train_data, encoded_train], axis=1)
-    test_data = pd.concat([test_data, encoded_test], axis=1)
-    logger.info(f"Categorical columns encoded. Train shape: {train_data.shape}, Test shape: {test_data.shape}")
 
     # Concatenate the final train and test data
     final_df = pd.concat([train_data, test_data], axis=0).reset_index(drop=True)
