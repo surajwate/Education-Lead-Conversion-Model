@@ -1,9 +1,9 @@
 import pandas as pd
 import logging
 from src.logging_utils import configure_logging
-from pathlib import Path
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 
+# Configure the logger for this specific module
 logger = configure_logging(log_file_name="data_preprocessing.log")
 
 def load_data(input_path):
@@ -63,30 +63,3 @@ def preprocess_data(df, fold):
     logger.info(f"Preprocessing completed for fold {fold}. Final data shape: {final_df.shape}")
 
     return final_df
-
-if __name__ == "__main__":
-    from data_cleaning import drop_columns, impute_missing_values
-    configure_logging()
-    logger.info("Starting data_preprocessing.py script.")
-    
-    try:
-        data = pd.read_csv("./input/train_folds.csv")
-        logger.info(f"Data loaded. Initial shape: {data.shape}")
-        
-        df = drop_columns(data)
-        logger.info("Dropped unnecessary columns.")
-        
-        first_fold = impute_missing_values(df, 0)
-        logger.info(f"Missing values in first fold: {first_fold.isna().sum().sum()} before preprocessing")
-        
-        # Example of processing a single fold (e.g., fold 0)
-        preprocessed_df = preprocess_data(first_fold, fold=0)
-        logger.info(f"Missing values in first fold after preprocessing: {preprocessed_df.isna().sum().sum()}")
-        
-        logger.info("Data preprocessing pipeline executed successfully.")
-        
-    except Exception as e:
-        logger.error(f"An error occurred: {str(e)}")
-        raise
-    
-    logger.info("data_preprocessing.py script completed successfully.")
