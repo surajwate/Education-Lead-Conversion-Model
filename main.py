@@ -30,10 +30,10 @@ def process_fold(fold, df):
 
     
     # Step 6: Model Evaluation
-    accuracy, report, matrix = evaluate_model(model, X_test, y_test)
+    accuracy, precision, roc_auc = evaluate_model(model, X_test, y_test, threshold=0.62)
     
     # Return accuracy and other evaluation results
-    return accuracy, report, matrix
+    return accuracy, precision, roc_auc
 
 def main():
     configure_logging()
@@ -51,18 +51,21 @@ def main():
         df = drop_columns(data)
 
         all_accuracies = []
+        all_precisions = []
         
         for fold in range(5):
-            accuracy, report, matrix = process_fold(fold, df)
+            accuracy, precision, roc_auc = process_fold(fold, df)
             all_accuracies.append(accuracy)
+            all_precisions.append(precision)
             
             # Print results for each fold
-            print(f"Fold {fold} Results:")
-            print(f"Accuracy: {accuracy}")
-            print(f"Classification Report:\n{report}")
-            print(f"Confusion Matrix:\n{matrix}")
+            print(f"Fold {fold} Results: Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, ROC AUC: {roc_auc:.4f}")
+            # print(f"Classification Report:\n{report}")
+            # print(f"Confusion Matrix:\n{matrix}")
 
         logger.info(f"Average Accuracy: {sum(all_accuracies) / len(all_accuracies):.2f}")
+        print(f"Average Accuracy: {sum(all_accuracies) / len(all_accuracies):.2f}")
+        print(f"Average Precision: {sum(all_precisions) / len(all_precisions):.2f}")
         
     except Exception as e:
         logger.error(f"An error occurred: {str(e)}")
