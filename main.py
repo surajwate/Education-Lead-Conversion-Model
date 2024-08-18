@@ -4,8 +4,9 @@ from sklearn.model_selection import train_test_split
 from src.create_folds import create_folds
 from src.data_cleaning import drop_columns, impute_missing_values
 from src.data_preprocessing import preprocess_data
-from src.log_reg_model import train_model, evaluate_model, load_data
-import joblib
+from src.log_reg_model import train_logistic_regression
+from src.model_utils import evaluate_model, load_data
+
 import time
 
 def configure_logging(log_file_name="main_pipeline.log"):
@@ -18,6 +19,29 @@ def configure_logging(log_file_name="main_pipeline.log"):
         filemode="a",
     )
     logging.info("Logging is configured.")
+
+
+def process_fold(fold, df):
+    logging.info(f"Processing fold {fold}...")
+    
+    # Step 3: Data Imputation
+    fold_df = impute_missing_values(df, fold)
+    
+    # Step 4: Data Preprocessing
+    fold_df = preprocess_data(fold_df, fold)
+    
+    # Step 5: Model Training
+    X = fold_df.drop(["Converted", "kfold"], axis=1)
+    y = fold_df["Converted"]
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    model = train_logistic_regression(X_train, y_train, fold=fold)
+
+    
+    # Step 6: Model Evaluation
+    accuracy, report, matrix = evaluate_model(model, X_test, y_test)
+    
+    # Return accuracy and other evaluation results
+    return accuracy, report, matrix
 
 def main():
     configure_logging()
@@ -37,30 +61,10 @@ def main():
         all_accuracies = []
         
         for fold in range(5):
-            logging.info(f"Processing fold {fold}...")
-            
-            # Step 3: Data Imputation
-            fold_df = impute_missing_values(df, fold)
-            
-            # Step 4: Data Preprocessing
-            fold_df = preprocess_data(fold_df, fold)
-            
-            # Step 5: Model Training
-            X = fold_df.drop(["Converted", "kfold"], axis=1)
-            y = fold_df["Converted"]
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-            model = train_model(X_train, y_train)
-            
-            # Save the model
-            model_path = f"./models/log_reg_fold_{fold}.pkl"
-            joblib.dump(model, model_path)
-            logging.info(f"Model for fold {fold} saved to {model_path}.")
-            
-            # Step 6: Model Evaluation
-            accuracy, report, matrix = evaluate_model(model, X_test, y_test)
+            accuracy, report, matrix = process_fold(fold, df)
             all_accuracies.append(accuracy)
             
-            # Print results
+            # Print results for each fold
             print(f"Fold {fold} Results:")
             print(f"Accuracy: {accuracy}")
             print(f"Classification Report:\n{report}")
