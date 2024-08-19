@@ -16,7 +16,7 @@ def train_logistic_regression(X_train, y_train, fold=0):
     # Save the model with a specific name including the fold number
     model_path = f"./models/log_reg_fold_{fold}.pkl"
     logger.info(f"Attempting to save model to: {model_path}")
-    # joblib.dump(model, model_path)
+    joblib.dump(model, model_path)
     logger.info(f"Model successfully saved to {model_path}")
 
     logger.info(f"Model saved to {model_path}.")

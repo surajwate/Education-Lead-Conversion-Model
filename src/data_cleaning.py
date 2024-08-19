@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-import logging
+import joblib
 from src.logging_utils import configure_logging
 from sklearn.impute import SimpleImputer
 
@@ -10,10 +10,17 @@ logger = configure_logging(log_file_name="data_cleaning.log")
 def drop_columns(df):
     logger.info("Dropping irrelevant columns...")
     initial_shape = df.shape
+
+    # Only drop columns if they exist in the DataFrame
+    columns_to_drop = ['Prospect ID', 'Lead Number']
+    columns_to_drop = [col for col in columns_to_drop if col in df.columns]
     
     # Drop the irrelevant columns
-    df.drop(['Prospect ID', 'Lead Number'], axis=1, inplace=True)
-    logger.info(f"Dropped irrelevant columns. Shape before: {initial_shape}, after: {df.shape}")
+    if columns_to_drop:
+        df.drop(columns=columns_to_drop, axis=1, inplace=True)
+        logger.info(f"Dropped irrelevant columns: {columns_to_drop}. Shape before: {initial_shape}, after: {df.shape}")
+    else:
+        logger.info("No columns to drop. Shape remains unchanged.")
 
     # Handle "Select" values as nulls
     df.replace("Select", np.nan, inplace=True)  
@@ -47,6 +54,10 @@ def impute_missing_values(df, fold):
     train = pd.DataFrame(mode_imputer.fit_transform(train), columns=df.columns)
     test = pd.DataFrame(mode_imputer.transform(test), columns=df.columns)
     logger.info("Imputed missing values with most frequent values.")
+
+    # Save the fitted imputer
+    imputer_path = f"./models/imputer_fold_{fold}.pkl"
+    joblib.dump(mode_imputer, imputer_path)
 
     # Concatenate train and test DataFrames vertically
     combined_df = pd.concat([train, test], axis=0).reset_index(drop=True)
