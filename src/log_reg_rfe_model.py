@@ -40,4 +40,7 @@ def train_logistic_regression_rfe(X_train, y_train, n_features_to_select=11, fol
         logger.error(f"Fold {fold}: Failed to save the model to {model_path}. Error: {e}")
         raise
     
-    return model, selected_features
+    return {
+        "model": model,
+        "selected_features": selected_features
+    }

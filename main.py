@@ -10,6 +10,7 @@ from src.data_preprocessing import preprocess_data
 from src.log_reg_model import train_logistic_regression
 from src.log_reg_rfe_model import train_logistic_regression_rfe
 from src.model_utils import evaluate_model, load_data
+from src.model_dispatcher import models
 
 logger = configure_logging(log_file_name="main_pipeline.log")
 
@@ -32,13 +33,33 @@ def process_fold(fold, df, model_type, n_features_to_select=10):
     X_test = test_df.drop(["Converted", "kfold"], axis=1)
     y_test = test_df["Converted"]
 
-    if model_type == "log_reg":
-        model = train_logistic_regression(X_train, y_train, fold=fold)
-        selected_features = X_train.columns  # All features are selected
-    elif model_type == "log_reg_rfe":
-        model, selected_features = train_logistic_regression_rfe(X_train, y_train, n_features_to_select=n_features_to_select, fold=fold)
+    # Retrieve the model and training function from the model_dispatcher
+    model_info = models.get(model_type)
+
+    if model_info is None:
+        raise ValueError(f"Invalid model type: {model_type}. Choose from: {list(models.keys())}")
+    
+    train_func = model_info.get("train_func")
+
+    if train_func:
+        # Train the model using the custom training function
+        result = train_func(X_train, y_train, fold=fold, **model_info.get("params", {}))
     else:
-        raise ValueError("Invalid model type. Choose between 'log_reg' and 'log_reg_rfe'.")
+        # If there's no custom training function, instantiate and train the model directly
+        model = model_info["model"]()
+        model.fit(X_train, y_train)
+        selected_features = X_train.columns  # Use all features by default
+
+    model = result["model"]
+    selected_features = result["selected_features"]
+
+    # if model_type == "log_reg":
+    #     model = train_logistic_regression(X_train, y_train, fold=fold)
+    #     selected_features = X_train.columns  # All features are selected
+    # elif model_type == "log_reg_rfe":
+    #     model, selected_features = train_logistic_regression_rfe(X_train, y_train, n_features_to_select=n_features_to_select, fold=fold)
+    # else:
+    #     raise ValueError("Invalid model type. Choose between 'log_reg' and 'log_reg_rfe'.")
 
     # Step 6: Model Evaluation
     accuracy, precision, roc_auc = evaluate_model(model, X_test[selected_features], y_test, threshold=0.62)
@@ -51,7 +72,7 @@ def main():
     parser = ArgumentParser()
     parser.add_argument("--model_type", type=str, default="log_reg", choices=["log_reg", "log_reg_rfe"],
                         help="Specify the model type: 'log_reg' or 'log_reg_rfe'.")
-    parser.add_argument("--n_features", type=int, default=10, help="Number of features to select in RFE.")
+    # parser.add_argument("--n_features", type=int, default=10, help="Number of features to select in RFE.")
     args = parser.parse_args()
 
     start_time = time.time()
@@ -71,7 +92,7 @@ def main():
         all_precisions = []
 
         for fold in range(5):
-            accuracy, precision, roc_auc = process_fold(fold, df, model_type=args.model_type, n_features_to_select=args.n_features)
+            accuracy, precision, roc_auc = process_fold(fold, df, model_type=args.model_type)
             all_accuracies.append(accuracy)
             all_precisions.append(precision)
 
