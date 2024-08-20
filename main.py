@@ -15,7 +15,7 @@ from src.model_dispatcher import models
 logger = configure_logging(log_file_name="main_pipeline.log")
 
 
-def process_fold(fold, df, model_type, n_features_to_select=10):
+def process_fold(fold, df, model_type, n_features_to_select=None):
     logger.info(f"Processing fold {fold} using {model_type}...")
 
     # Step 3: Data Imputation
@@ -44,14 +44,15 @@ def process_fold(fold, df, model_type, n_features_to_select=10):
     if train_func:
         # Train the model using the custom training function
         result = train_func(X_train, y_train, fold=fold, **model_info.get("params", {}))
+        model = result["model"]
+        selected_features = result["selected_features"]
     else:
         # If there's no custom training function, instantiate and train the model directly
         model = model_info["model"]()
         model.fit(X_train, y_train)
         selected_features = X_train.columns  # Use all features by default
 
-    model = result["model"]
-    selected_features = result["selected_features"]
+
 
     # if model_type == "log_reg":
     #     model = train_logistic_regression(X_train, y_train, fold=fold)
