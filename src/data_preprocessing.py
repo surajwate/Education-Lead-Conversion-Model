@@ -30,7 +30,9 @@ def preprocess_data(df, fold, save=True):
     logger.info(f"Binary columns mapped: {binary_columns}. Data shape: {df.shape}")
 
     # Save and convert numerical columns
-    numerical_columns = ['Converted', 'TotalVisits', 'Total Time Spent on Website', 'Page Views Per Visit', 'kfold']
+    numerical_columns = ['Converted', 'TotalVisits', 'Total Time Spent on Website', 'Page Views Per Visit']
+    if "kfold" in df.columns:
+        numerical_columns.append("kfold")
     if save:
         joblib.dump(numerical_columns, f"./models/numerical_columns_fold_{fold}.pkl")
 
@@ -38,21 +40,31 @@ def preprocess_data(df, fold, save=True):
     logger.info(f"Numerical columns converted: {numerical_columns}. Data shape: {df.shape}")
 
     # Removing 'Converted' and 'kfold' columns from numerical columns to be scaled
+    if "kfold" in df.columns:
+        numerical_columns.remove('kfold')
     numerical_columns.remove('Converted')
-    numerical_columns.remove('kfold')
 
-    # Split data into train and test based on kfold column
-    train_data = df[df.kfold != fold].reset_index(drop=True)
-    test_data = df[df.kfold == fold].reset_index(drop=True)
-    logger.info(f"Split data into train and test. Train shape: {train_data.shape}, Test shape: {test_data.shape}")
+    # Split data into train and test based on kfold column if present else use the entire dataset
+    if "kfold" in df.columns:
+        train_data = df[df.kfold != fold].reset_index(drop=True)
+        test_data = df[df.kfold == fold].reset_index(drop=True)
+        logger.info(f"Split data into train and test. Train shape: {train_data.shape}, Test shape: {test_data.shape}")
+    else:
+        train_data = df
+        test_data = pd.DataFrame()
 
     # One-hot encode categorical columns and initialize the encoder
     categorical_columns = [col for col in df.columns if df[col].dtype == 'O']
     encoder = OneHotEncoder(sparse_output=False, handle_unknown='ignore', drop='first')
 
-    # Fit OHE on training + test data to ensure no unseen categories in test
-    full_data = pd.concat([train_data[categorical_columns], test_data[categorical_columns]], axis=0)
-    encoder.fit(full_data)
+    # Fit OHE on training data (and test data if present)
+    if not test_data.empty:
+        # Concaternate train and test data to fit OHE
+        full_data = pd.concat([train_data[categorical_columns], test_data[categorical_columns]], axis=0)
+        encoder.fit(full_data)
+    else:
+        # Fit OHE on train data only (Full dataset)
+        encoder.fit(train_data[categorical_columns])
 
     if save:
         # Save the encoder
@@ -63,22 +75,30 @@ def preprocess_data(df, fold, save=True):
     # Transform train and test data
     train_data_encoded = pd.DataFrame(encoder.transform(train_data[categorical_columns]).astype(int), 
                                       columns=encoder.get_feature_names_out(categorical_columns))
-    test_data_encoded = pd.DataFrame(encoder.transform(test_data[categorical_columns]).astype(int), 
-                                     columns=encoder.get_feature_names_out(categorical_columns))
+    # Transform test data only if present
+    if not test_data.empty:
+        test_data_encoded = pd.DataFrame(encoder.transform(test_data[categorical_columns]).astype(int), 
+                                        columns=encoder.get_feature_names_out(categorical_columns))
+    else:
+        test_data_encoded = pd.DataFrame()
 
+    # Concatenate the encoded columns with the original data
     train_data = pd.concat([train_data, train_data_encoded], axis=1)
-    test_data = pd.concat([test_data, test_data_encoded], axis=1)
+    if not test_data.empty:
+        test_data = pd.concat([test_data, test_data_encoded], axis=1)
 
     # Drop original categorical columns after encoding
     train_data = train_data.drop(categorical_columns, axis=1)
-    test_data = test_data.drop(categorical_columns, axis=1)
+    if not test_data.empty:
+        test_data = test_data.drop(categorical_columns, axis=1)
 
     logger.info(f"Categorical columns encoded: {categorical_columns}.")
 
     # Scale the numerical columns
     scaler = StandardScaler()
     train_data[numerical_columns] = scaler.fit_transform(train_data[numerical_columns])
-    test_data[numerical_columns] = scaler.transform(test_data[numerical_columns])
+    if not test_data.empty:
+        test_data[numerical_columns] = scaler.transform(test_data[numerical_columns])
 
     if save:
         # Save the scaler
@@ -92,7 +112,11 @@ def preprocess_data(df, fold, save=True):
     logger.info(f"Unique values in 'Converted' after preprocessing: {df['Converted'].unique()}")
 
     # Concatenate the final train and test data (ensure order is preserved)
-    final_df = pd.concat([train_data, test_data], axis=0).reset_index(drop=True)
+    if not test_data.empty:
+        final_df = pd.concat([train_data, test_data], axis=0).reset_index(drop=True)
+    else:
+        final_df = train_data.reset_index(drop=True)
+
     logger.info(f"Preprocessing completed for fold {fold}. Final data shape: {final_df.shape}")
 
     return final_df
