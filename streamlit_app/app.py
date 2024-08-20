@@ -1,75 +1,70 @@
 import streamlit as st
-import pandas as pd
 import joblib
-from pathlib import Path
+import pandas as pd
 
+# Load the trained model and preprocessing objects
+model = joblib.load("./models/log_reg_rfe_fold_100.pkl")
+scaler = joblib.load("./models/scaler_fold_100.pkl")
+encoder = joblib.load("./models/encoder_fold_100.pkl")
+binary_mapping = joblib.load("./models/binary_mapping_fold_100.pkl")
+binary_columns = joblib.load("./models/binary_columns_fold_100.pkl")
+numerical_columns = joblib.load("./models/numerical_columns_fold_100.pkl")
+selected_features = joblib.load("./models/log_reg_rfe_features_fold_100.pkl")
 
-import sys
-import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# Remove the 'Converted' column from numerical_columns if it's present
+if 'Converted' in numerical_columns:
+    numerical_columns.remove('Converted')
 
-from src.model_dispatcher import models
-from src.data_preprocessing import preprocess_data
+# Streamlit app title
+st.title("Lead Scoring Prediction App")
 
-from src.data_cleaning import drop_columns, impute_missing_values
-from src.data_preprocessing import preprocess_data
-from src.model_utils import evaluate_model
+# Collect user inputs for each selected feature
+do_not_email = st.selectbox("Do Not Email", ("Yes", "No"))
+total_time_spent = st.number_input("Total Time Spent on Website", min_value=0.0, max_value=1000.0, value=100.0)
 
-# Load the model and imputer
-model = joblib.load("./models/log_reg_fold_0.pkl")
-mode_imputer = joblib.load("./models/imputer_fold_0.pkl")
+# Collect inputs for categorical features
+lead_origin = st.selectbox("Lead Origin", ["Lead Add Form", "Landing Page Submission", "API", "Lead Import"])
+lead_source = st.selectbox("Lead Source", ["Olark Chat", "Organic Search", "Direct Traffic", "Google", "Welingak Website", "Referral Sites"])
+last_activity = st.selectbox("Last Activity", ["Email Opened", "Page Visited on Website", "Olark Chat Conversation", "Converted to Lead"])
+last_notable_activity = st.selectbox("Last Notable Activity", ["Email Link Clicked", "Email Opened", "Modified", "Olark Chat Conversation", "Page Visited on Website"])
 
-
-# Define the selected features based on your model
-selected_features = [
-    'Do Not Email', 'Lead Origin_Lead Add Form',
-    'Lead Source_Welingak Website', 'Last Activity_Email Bounced',
-    'Last Activity_Olark Chat Conversation',
-    'Last Notable Activity_Email Link Clicked',
-    'Last Notable Activity_Email Opened',
-    'Last Notable Activity_Had a Phone Conversation',
-    'Last Notable Activity_Modified',
-    'Last Notable Activity_Olark Chat Conversation',
-    'Last Notable Activity_Page Visited on Website'
-]
-
-st.title("Lead Conversion Prediction App")
-st.write("This app predicts the probability of lead conversion based on the provided features.")
-
-# User input features
-lead_origin = st.selectbox('Lead Origin', ['Lead Add Form', 'Other'])
-lead_source = st.selectbox('Lead Source', ['Welingak Website', 'Google', 'Facebook', 'Referral', 'Others'])
-last_activity = st.selectbox('Last Activity', ['Email Bounced', 'Olark Chat Conversation', 'Email Opened', 'SMS Sent'])
-do_not_email = st.radio('Do Not Email', ['Yes', 'No'])
-last_notable_activity = st.selectbox('Last Notable Activity', [
-    'Email Link Clicked', 'Email Opened', 'Had a Phone Conversation', 'Modified', 
-    'Olark Chat Conversation', 'Page Visited on Website'])
-
-# Create a dictionary of user input with binary and one-hot encoding
-user_data = {
-    'Do Not Email': 1 if do_not_email == 'Yes' else 0,
-    'Lead Origin_Lead Add Form': 1 if lead_origin == 'Lead Add Form' else 0,
-    'Lead Source_Welingak Website': 1 if lead_source == 'Welingak Website' else 0,
-    'Last Activity_Email Bounced': 1 if last_activity == 'Email Bounced' else 0,
-    'Last Activity_Olark Chat Conversation': 1 if last_activity == 'Olark Chat Conversation' else 0,
-    'Last Notable Activity_Email Link Clicked': 1 if last_notable_activity == 'Email Link Clicked' else 0,
-    'Last Notable Activity_Email Opened': 1 if last_notable_activity == 'Email Opened' else 0,
-    'Last Notable Activity_Had a Phone Conversation': 1 if last_notable_activity == 'Had a Phone Conversation' else 0,
-    'Last Notable Activity_Modified': 1 if last_notable_activity == 'Modified' else 0,
-    'Last Notable Activity_Olark Chat Conversation': 1 if last_notable_activity == 'Olark Chat Conversation' else 0,
-    'Last Notable Activity_Page Visited on Website': 1 if last_notable_activity == 'Page Visited on Website' else 0
+# Manually create the input data
+input_data = {
+    "Do Not Email": binary_mapping[do_not_email],
+    "TotalVisits": 0,  # Default to 0, as it might not be used
+    "Page Views Per Visit": 0,  # Default to 0, as it might not be used
+    "Total Time Spent on Website": total_time_spent,
+    "Lead Origin_Lead Add Form": 1 if lead_origin == "Lead Add Form" else 0,
+    "Lead Source_Olark Chat": 1 if lead_source == "Olark Chat" else 0,
+    "Lead Source_Welingak Website": 1 if lead_source == "Welingak Website" else 0,
+    "Last Activity_Olark Chat Conversation": 1 if last_activity == "Olark Chat Conversation" else 0,
+    "Last Notable Activity_Email Link Clicked": 1 if last_notable_activity == "Email Link Clicked" else 0,
+    "Last Notable Activity_Email Opened": 1 if last_notable_activity == "Email Opened" else 0,
+    "Last Notable Activity_Modified": 1 if last_notable_activity == "Modified" else 0,
+    "Last Notable Activity_Olark Chat Conversation": 1 if last_notable_activity == "Olark Chat Conversation" else 0,
+    "Last Notable Activity_Page Visited on Website": 1 if last_notable_activity == "Page Visited on Website" else 0,
 }
 
-input_df = pd.DataFrame([user_data])
+# Convert the input_data dictionary to a DataFrame
+user_data = pd.DataFrame([input_data])
 
-# Align the input data with the selected features expected by the model
-input_df = input_df.reindex(columns=selected_features, fill_value=0)
+# Debugging: Print the columns of user_data and selected_features to ensure they match
+# st.write("User Data Columns: ", user_data.columns.tolist())
+# st.write("Selected Features: ", selected_features)
 
-# Preprocess the input data (apply imputation)
-input_df_cleaned = pd.DataFrame(mode_imputer.transform(input_df), columns=selected_features)
+# Reorder the columns to match the order expected by the model
+user_data = user_data[selected_features + [col for col in user_data.columns if col not in selected_features]]
 
-# Make predictions
+# Ensure the columns are in the correct order for the scaler and model
+user_data[numerical_columns] = scaler.transform(user_data[numerical_columns])
+
+# Apply the model to the user data
 if st.button("Predict"):
-    prediction_prob = model.predict_proba(input_df_cleaned)[:, 1][0]
-    st.subheader("Prediction Result")
-    st.write(f"The predicted probability of lead conversion is **{prediction_prob*100:.2f}%**.")
+    prediction = model.predict(user_data[selected_features])
+    prediction_proba = model.predict_proba(user_data[selected_features])[:, 1]
+
+    # Display the result
+    if prediction[0] == 1:
+        st.success(f"The model predicts that the lead is likely to convert with a probability of {prediction_proba[0]:.2f}.")
+    else:
+        st.warning(f"The model predicts that the lead is unlikely to convert with a probability of {1 - prediction_proba[0]:.2f}.")
